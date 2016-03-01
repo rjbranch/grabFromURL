@@ -1,0 +1,2 @@
+.jpg,.jpeg,.png,.gif
+http://www.duboisdelarayere.com/images/jpg/Mes-chiens/Shirley/
