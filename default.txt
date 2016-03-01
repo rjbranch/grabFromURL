@@ -1,2 +1,2 @@
-.jpg,.jpeg,.png,.gif
-http://www.duboisdelarayere.com/images/jpg/Mes-chiens/Shirley/
+.png,.jpg,.jpeg,.gif
+%22Index of%22 cat
