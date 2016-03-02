@@ -7,24 +7,87 @@ import os
 import errno
 import csv
 
+class Site:
+	#Default constructor
+	def __init__(self):
+		self.name = ""
+		self.term = ""
+		self.url = ""
+		self.page = 0
+		self.links = []
+
+	#Constructor Method
+	def __init__(self, term_, url_, page_):
+		self.name = ""
+		self.term = term_
+		self.url = url_
+		self.page = page_
+		self.links = []
+
+	#Set function for name
+	def setName(self, nameIn):
+		self.name = nameIn
+
+	#Get function for name
+	def getName(self):
+		return self.name
+
+	#Set function for term
+	def setTerm(self, termIn):
+		self.term = termIn
+
+	#Get function for term
+	def getTerm(self):
+		return self.term
+
+	#Set function for url
+	def setUrl(self, urlIn):
+		self.url = urlIn
+
+	#Get function for url
+	def getUrl(self):
+		return self.url
+
+	#Set function for page
+	def setPage(self, numIn):
+		self.page = numIn
+
+	#Get function for page
+	def getPage(self):
+		return self.page
+
+	#Function to add a string to the end of "links"
+	def addLink(self, linkIn):
+		self.links.append(linkIn)
+
+	#Function to return the link at a given index of "links"
+	def getLink(self, index):
+		return self.links[index]
+
+	#Function to return the entire "links" list
+	def getLinks(self):
+		return self.links
+
 class Container:
 	#Default constructor
 	def __init__(self):
 		self.fileName = "default.txt"
 		self.folderName = "default_txt"
 		self.searchTerms = []
-		self.urls = []
+		self.sites = []
 		self.extensions = []
-		self.links = []
 		self.rowNum = 0
+		self.numPages = 1
 
-	#Makes a directory with the name folderName, if one doesn't already exist
-	def makeFolder(self):
-		try:
-			os.makedirs(self.folderName)
-		except OSError as exception:
-			if exception.errno != errno.EEXIST:
-				raise
+	#Makes tree of directories to store results
+	def makeFolders(self):
+		for term in self.searchTerms:
+			for i in range(self.numPages):
+				try:
+					os.makedirs(self.folderName + "/" + term + "/" + str(i + 1))
+				except OSError as exception:
+					if exception.errno != errno.EEXIST:
+						raise
 
 	#Set function for fileName
 	def setFileName(self, nameIn):
@@ -54,17 +117,17 @@ class Container:
 	def getSearchTerms(self):
 		return self.searchTerms
 
-	#Function to add a string to the end of "urls"
-	def addUrl(self, urlIn):
-		self.urls.append(urlIn)
+	#Function to add a Site to the end of "sites"
+	def addSite(self, siteIn):
+		self.sites.append(siteIn)
 
-	#Function to return the url at a given index of "urls"
-	def getUrl(self, index):
-		return self.urls[index]
+	#Function to return the Site at a given index of "sites"
+	def getSite(self, index):
+		return self.sites[index]
 
-	#Function to return the entire "urls" list
-	def getUrls(self):
-		return self.urls
+	#Function to return the entire "sites" list
+	def getSites(self):
+		return self.sites
 
 	#Function to add a string to the end of "extensions"
 	def addExtension(self, extensionIn):
@@ -78,18 +141,6 @@ class Container:
 	def getExtensions(self):
 		return self.extensions
 
-	#Function to add a string to the end of "links"
-	def addLink(self, linkIn):
-		self.links.append(linkIn)
-
-	#Function to return the link at a given index of "links"
-	def getLink(self, index):
-		return self.links[index]
-
-	#Function to return the entire "links" list
-	def getLinks(self):
-		return self.links
-
 	#Set function for rowNum
 	def setRowNum(self, numIn):
 		self.rowNum = numIn
@@ -98,8 +149,16 @@ class Container:
 	def getRowNum(self):
 		return self.rowNum
 
-def getLinks(cont, i):
-	url = cont.getUrl(i)
+	#Set function for numPages
+	def setNumPages(self, numIn):
+		self.numPages = numIn
+
+	#Get function for numPages
+	def getNumPages(self):
+		return self.numPages
+
+def buildLinks(sit, exts):
+	url = sit.getUrl()
 	try:
 		response = urllib2.urlopen(url)
 	except:
@@ -108,12 +167,13 @@ def getLinks(cont, i):
 	html = response.read()
 	content = StringIO(html)
 	for line in content:
-		for ext in cont.getExtensions():
+		for ext in exts:
 			if ext in line:
 				try:
 					link = re.search("href=\"(.+?)" + ext + "\"", line).group(1)
-					link = url + link + ext
-					cont.addLink(link)
+					if ">" not in link:
+						link = url + link + ext
+						sit.addLink(link)
 					break
 				except:
 					#This often occurs if a link is preceded by an icon,
@@ -121,21 +181,30 @@ def getLinks(cont, i):
 					pass
 
 def checkUrl(url):
+	title = ""
+
 	try:
-		response = urllib2.urlopen(url)
+		opener = urllib2.build_opener()
+		opener.addheaders = [('User-agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36')]
+		response = opener.open(url)
 	except:
-		print("Cannot parse HTML: " + url)
-		return False
-	response = urllib2.urlopen(url)
+		print('Cannot parse HTML: ' + url)
+		return title
+
 	html = response.read()
 	content = StringIO(html)
 	for line in content:
 		if "<title>Index of " in line:
-			return True
-	return False
+			try:
+				title = re.search("<title>Index of (.+?)</title>", line).group(1)
+				break
+			except:
+				#This can occur if the HTML of the page is formatted strangely,
+				#for example if the title is spread throughout multiple lines
+				pass
+	return title
 
 def fileInput(cont):
-	cont.makeFolder()
 	data = open(cont.getFileName(), 'rb')
 	reader = csv.reader(data)
 
@@ -151,8 +220,11 @@ def fileInput(cont):
 
 	#All objects are now read in
 	data.close
+	cont.makeFolders()
 
-def parseGoogle(cont, url):
+def parseGoogle(cont, searchTerm, index):
+	url = getSearchURL(searchTerm, index)
+
 	print("CANDIDATES:")
 	try:
 		opener = urllib2.build_opener()
@@ -172,11 +244,21 @@ def parseGoogle(cont, url):
 			if (link[-1] != '/'):
 				link = link + '/'
 			print(link)
-			cont.addUrl(link)
+			cont.addSite(Site(searchTerm, link, index))
 
 def buildURLs(cont):
 	for phrase in cont.getSearchTerms():
-		parseGoogle(cont, getSearchURL(phrase, 1))
+		for i in range(cont.getNumPages()):
+			parseGoogle(cont, phrase, i)
+
+def makeFilename(nameIn):
+	nameOut = ""
+	for char in nameIn:
+		if char in "\\/:*?\"<>|":
+			nameOut += "-"
+		else:
+			nameOut += char
+	return nameOut
 
 def getSearchURL(term, pageNum):
 	tempName = ""
@@ -188,15 +270,25 @@ def getSearchURL(term, pageNum):
 	return "https://www.google.com/search?q=" + tempName + "&start=" + str((pageNum - 1) * 10)
 
 def download(cont):
-	for link in cont.getLinks():
-		try:
-			f = urllib2.urlopen(link)
-			print("Downloading " + link)
-			path = cont.getFolderName() + "/" + os.path.basename(link)
-			with open(path, "wb") as file:
-				file.write(f.read())
-		except:
-			print("ERROR: Could not download " + link)
+	for site in cont.getSites():
+		for link in site.getLinks():
+			path = cont.getFolderName() + "/" + site.getTerm() + "/" + str(site.getPage() + 1)
+			if site.getName()[0] != "/":
+				path = path + "/"
+			path = path +  site.getName()
+			try:
+				os.makedirs(path)
+			except OSError as exception:
+				if exception.errno != errno.EEXIST:
+					raise
+			try:
+				f = urllib2.urlopen(link)
+				print("Downloading " + link)
+				path = path + "/" + os.path.basename(link)
+				with open(path, "wb") as file:
+					file.write(f.read())
+			except:
+				print("ERROR: Could not download " + link)
 
 def main():
 	container = Container()
@@ -215,8 +307,12 @@ def main():
 	buildURLs(container)
 
 	successes = []
-	for url in container.getUrls():
-		if(checkUrl(url)):
+
+	for site in container.getSites():
+		directoryName = checkUrl(site.getUrl())
+		if(directoryName != ""):
+			site.setName(directoryName)
+			print("DIRECTORY NAME: " + directoryName)
 			successes.append(True)
 		else:
 			successes.append(False)
@@ -224,7 +320,7 @@ def main():
 	index = 0
 	for val in successes:
 		if val:
-			getLinks(container, index)
+			buildLinks(container.getSites()[index], container.getExtensions())
 		index += 1
 
 	download(container)
