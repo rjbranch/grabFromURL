@@ -1,2 +1,2 @@
 .png,.jpg,.jpeg,.gif
-%22Index of%22 cat,2,10
+%22Index of%22 cat,0,2,10

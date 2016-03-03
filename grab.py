@@ -94,14 +94,19 @@ class Search:
 		self.numPages = 0
 		self.sites = []
 		self.maxDownloads = 0
+		self.keepSorted = False
 
 	#Constructor Method
-	def __init__(self, term_, numPages_, maxDownloads_):
+	def __init__(self, term_, keepSorted_, numPages_, maxDownloads_):
 		self.name = ""
 		self.term = term_
 		self.numPages = numPages_
 		self.sites = []
 		self.maxDownloads = maxDownloads_
+		if (keepSorted_ == 0):
+			self.keepSorted = False
+		else:
+			self.keepSorted = True
 
 	#Set function for name
 	def setName(self, nameIn):
@@ -147,6 +152,14 @@ class Search:
 	def getMaxDownloads(self):
 		return self.maxDownloads
 
+	#Set function for keepSorted
+	def setKeepSorted(self, boolIn):
+		self.keepSorted = boolIn
+
+	#Get function for keepSorted
+	def getKeepSorted(self):
+		return self.keepSorted
+
 class Container:
 	#Default constructor
 	def __init__(self):
@@ -159,12 +172,18 @@ class Container:
 	#Makes tree of directories to store results
 	def makeFolders(self):
 		for search in self.searches:
-			for i in range(search.getNumPages()):
-				try:
-					os.makedirs(self.folderName + "/" + search.getTerm() + "/" + str(i + 1))
-				except OSError as exception:
-					if exception.errno != errno.EEXIST:
-						raise
+			try:
+				os.makedirs(self.folderName + "/" + search.getTerm())
+			except OSError as exception:
+				if exception.errno != errno.EEXIST:
+					raise
+			if search.getKeepSorted():
+				for i in range(search.getNumPages()):
+					try:
+						os.makedirs(self.folderName + "/" + search.getTerm() + "/" + str(i + 1))
+					except OSError as exception:
+						if exception.errno != errno.EEXIST:
+							raise
 
 	#Set function for inFileName
 	def setInFileName(self, nameIn):
@@ -279,7 +298,7 @@ def fileInput(cont):
 		#Gets search term data
 		else:
 			#Creates a new Search object with the specified term and number of pages
-			cont.addSearch(Search(row[0], int(row[1]), int(row[2])))
+			cont.addSearch(Search(row[0], int(row[1]), int(row[2]), int(row[3])))
 
 	#All objects are now read in
 	data.close
@@ -337,10 +356,14 @@ def download(cont):
 		for site in search.getSites():
 			for file in site.getFiles():
 				link = file.getLink()
-				path = cont.getFolderName() + "/" + search.getTerm() + "/" + str(site.getPage())
-				if site.getName()[0] != "/":
-					path = path + "/"
-				path = path +  site.getName()
+				if search.getKeepSorted():
+					path = cont.getFolderName() + "/" + search.getTerm() + "/" + str(site.getPage())
+					if site.getName()[0] != "/":
+						path = path + "/"
+					path = path +  site.getName()
+				else:
+					path = cont.getFolderName() + "/" + search.getTerm()
+
 				try:
 					os.makedirs(path)
 				except OSError as exception:
@@ -349,7 +372,10 @@ def download(cont):
 				try:
 					f = urllib2.urlopen(link)
 					print("Downloading " + link)
-					path = path + "/" + os.path.basename(link)
+					if search.getKeepSorted():
+						path = path + "/" + os.path.basename(link)
+					else:
+						path = path + "/" + os.path.split(link)[1]
 					with open(path, "wb") as file:
 						file.write(f.read())
 				except:
