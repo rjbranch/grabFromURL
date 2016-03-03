@@ -231,7 +231,7 @@ def buildLinks(sit, exts, numDownloads):
 					link = re.search("href=\"(.+?)" + ext + "\"", line).group(1)
 					if ">" not in link:
 						link = url + link + ext
-						sit.addLink(link)
+						sit.addFile(File(link))
 						numLinks += 1
 					break
 				except:
@@ -253,14 +253,17 @@ def checkUrl(url):
 	html = response.read()
 	content = StringIO(html)
 	for line in content:
-		if "<title>Index of /" in line:
-			try:
-				title = re.search("<title>Index of (.+?)</title>", line).group(1)
-				break
-			except:
-				#This can occur if the HTML of the page is formatted strangely,
-				#for example if the title is spread throughout multiple lines
-				pass
+		if "<title>" in line:
+			if "<title>Index of /" in line:
+				try:
+					title = re.search("<title>Index of (.+?)</title>", line).group(1)
+					return title
+				except:
+					#This can occur if the HTML of the page is formatted strangely,
+					#for example if the title is spread throughout multiple lines
+					pass
+			else:
+				return title
 	return title
 
 def fileInput(cont):
